@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#243b53">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Meus Treinos">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Meu Controle de Treinos</title>
+<style>
+:root{--navy:#243b53;--blue:#3e647d;--bg:#f3f6f8;--card:#fff;--ink:#172b3a;--muted:#627483;--green:#16845b;--red:#b54747;--gold:#9b6b16}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
+header{background:var(--navy);color:#fff;padding:22px 18px 20px;border-radius:0 0 22px 22px}
+h1{font-size:22px;margin:0 0 5px}header p{margin:0;color:#d9e4ec;font-size:13px}
+main{max-width:720px;margin:auto;padding:14px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:-3px}
+.stat,.card{background:var(--card);border-radius:15px;padding:14px;box-shadow:0 2px 10px #1c34400c}
+.stat strong{display:block;font-size:24px;color:var(--navy)}.stat span{font-size:11px;color:var(--muted)}
+.progress{height:8px;background:#e5ebef;border-radius:9px;overflow:hidden;margin-top:10px}.progress div{height:100%;background:var(--green);width:0}
+.tabs{display:flex;gap:8px;margin:16px 0 12px}.tabs button{flex:1;border:0;border-radius:10px;padding:11px;background:#e2e9ee;color:var(--navy);font-weight:700}.tabs button.active{background:var(--navy);color:white}
+.section-title{font-size:17px;margin:18px 2px 10px}
+.session{margin-bottom:10px;border:1px solid #e7edf1}.session-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.session h3{margin:0;font-size:15px}.meta{font-size:12px;color:var(--muted);margin-top:4px}
+.pill{font-size:11px;border-radius:20px;padding:5px 9px;background:#edf2f5;color:var(--blue);white-space:nowrap;font-weight:700}.pill.done{background:#e2f4ec;color:var(--green)}.pill.missed{background:#faeaea;color:var(--red)}
+label{display:block;font-size:12px;color:var(--muted);font-weight:600;margin:12px 0 5px}
+input,select,textarea{width:100%;border:1px solid #d5dfe5;border-radius:9px;padding:10px;font:inherit;background:white;color:var(--ink)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+button.primary{background:var(--green);color:#fff;border:0;border-radius:10px;padding:11px 14px;font-weight:700;width:100%;margin-top:12px}
+button.secondary{background:#edf2f5;color:var(--navy);border:0;border-radius:9px;padding:9px 12px;font-weight:650}
+.exercise{padding:10px 0;border-bottom:1px solid #edf1f3}.exercise:last-child{border:0}.exercise strong{display:block;font-size:14px}.exercise small{color:var(--muted);font-size:12px}
+.hidden{display:none!important}.hint{font-size:12px;color:var(--muted);line-height:1.5}.empty{padding:20px;text-align:center;color:var(--muted)}
+footer{text-align:center;color:var(--muted);font-size:11px;padding:18px}
+</style>
+</head>
+<body>
+<header><h1>Meu Controle de Treinos</h1><p>Carolina · Meta de 3 treinos por semana</p></header>
+<main>
+<section class="stats">
+ <div class="stat"><strong id="weekCount">0/3</strong><span>Treinos nesta semana</span></div>
+ <div class="stat"><strong id="weekPercent">0%</strong><span>Frequência semanal</span></div>
+ <div class="stat"><strong id="totalCount">0</strong><span>Treinos realizados</span></div>
+</section>
+<div class="progress"><div id="progressBar"></div></div>
+<nav class="tabs">
+ <button class="active" data-tab="agenda">Agenda</button><button data-tab="fichas">Fichas A e B</button><button data-tab="historico">Histórico</button>
+</nav>
+<section id="agenda">
+ <h2 class="section-title">Sua programação</h2>
+ <p class="hint">Segunda: sozinha · Terça e sexta: personal. Marque o status e informe a data em que treinou. Os registros ficam salvos neste aparelho.</p>
+ <div id="sessionList"></div>
+</section>
+<section id="fichas" class="hidden">
+ <h2 class="section-title">Treino A</h2><div class="card" id="workoutA"></div>
+ <h2 class="section-title">Treino B</h2><div class="card" id="workoutB"></div>
+</section>
+<section id="historico" class="hidden">
+ <h2 class="section-title">Histórico de frequência</h2><div class="card" id="historySummary"></div>
+ <p class="hint">Os dados são armazenados localmente no navegador. Use “Exportar backup” para guardar uma cópia.</p>
+ <button class="secondary" id="exportBtn">Exportar backup</button>
+ <label for="importFile">Restaurar backup</label><input id="importFile" type="file" accept="application/json">
+</section>
+<footer>Seus dados ficam neste iPhone/navegador. Exporte um backup antes de trocar de aparelho ou limpar os dados do navegador.</footer>
+</main>
+<script>
+const workouts={
+ A:[
+ ["Agachamento taça","3 séries","10 / 12 / 15","10 kg"],
+ ["Remada fechada no TRX","3 séries","15","Peso corporal / TRX"],
+ ["Leg press 45° angular","3 séries","10 a 12","20 + 20 kg"],
+ ["Supino","3 séries","15","6 kg"],
+ ["Cadeira flexora","4 séries","10 a 12","33,5 kg"],
+ ["Rosca com halter","4 séries","10 a 12","5 kg"]
+ ],
+ B:[
+ ["Levantamento terra","3 séries","10 a 12","5 placas"],
+ ["Tríceps francês","3 séries","12 a 15","6 kg"],
+ ["Puxador alto neutro (pegada maior)","3 séries","10 a 12","5 placas"],
+ ["Remada baixa","3 séries","10 a 12","5 placas"],
+ ["Abdutora","4 séries","15","43,5 kg"],
+ ["Abdominal infra","3 séries","15","Peso corporal"]
+ ]
+};
+const sessions=[];
+const start=new Date(2026,10,23), end=new Date(2027,0,17);
+const dayNames=["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"];
+let d=new Date(start), n=0;
+while(d<=end){
+ if([1,2,5].includes(d.getDay())){
+  sessions.push({id:d.toISOString().slice(0,10),date:d.toISOString().slice(0,10),day:dayNames[d.getDay()],workout:n%2===0?"A":"B",coach:d.getDay()===1?"Sozinha":"Personal"});
+  n++;
+ }
+ d.setDate(d.getDate()+1);
+}
+const KEY="carolina_training_records_v1";
+let records=JSON.parse(localStorage.getItem(KEY)||"{}");
+const fmt=s=>{if(!s)return "—";let [y,m,day]=s.split("-");return `${day}/${m}/${y}`};
+const save=()=>localStorage.setItem(KEY,JSON.stringify(records));
+function currentWeekKey(dateStr){
+ const x=new Date(dateStr+"T12:00:00"), day=(x.getDay()+6)%7;
+ x.setDate(x.getDate()-day);return x.toISOString().slice(0,10);
+}
+function renderAgenda(){
+ const root=document.getElementById("sessionList");root.innerHTML="";
+ sessions.forEach(s=>{
+  const r=records[s.id]||{status:"Não marcado",doneDate:"",notes:""};
+  const card=document.createElement("div");card.className="card session";
+  const statusClass=r.status==="Realizado"?"done":r.status==="Não realizado"?"missed":"";
+  card.innerHTML=`<div class="session-top"><div><h3>${s.day} · Treino ${s.workout}</h3><div class="meta">${fmt(s.date)} · ${s.coach}</div></div><span class="pill ${statusClass}">${r.status}</span></div>
+  <label>Status</label><select class="status"><option ${r.status==="Não marcado"?"selected":""}>Não marcado</option><option ${r.status==="Realizado"?"selected":""}>Realizado</option><option ${r.status==="Não realizado"?"selected":""}>Não realizado</option></select>
+  <div class="row"><div><label>Data realizada</label><input class="doneDate" type="date" value="${r.doneDate||""}"></div><div><label>Observação</label><input class="notes" type="text" placeholder="Opcional" value="${(r.notes||"").replaceAll('"',"&quot;")}"></div></div>
+  <button class="primary">Salvar registro</button>`;
+  card.querySelector("button").onclick=()=>{
+   const status=card.querySelector(".status").value,doneDate=card.querySelector(".doneDate").value,notes=card.querySelector(".notes").value;
+   records[s.id]={status,doneDate,notes};save();render();
+  };
+  root.appendChild(card);
+ });
+}
+function renderWorkouts(){
+ for(const key of ["A","B"]){
+  document.getElementById("workout"+key).innerHTML=workouts[key].map(e=>`<div class="exercise"><strong>${e[0]}</strong><small>${e[1]} · Repetições: ${e[2]} · Carga inicial: ${e[3]}</small></div>`).join("");
+ }
+}
+function renderStats(){
+ const now=new Date(),today=now.toISOString().slice(0,10),wk=currentWeekKey(today);
+ const thisWeek=sessions.filter(s=>currentWeekKey(s.date)===wk);
+ const done=thisWeek.filter(s=>(records[s.id]||{}).status==="Realizado").length;
+ const total=sessions.filter(s=>(records[s.id]||{}).status==="Realizado").length;
+ document.getElementById("weekCount").textContent=done+"/3";
+ document.getElementById("weekPercent").textContent=Math.round(done/3*100)+"%";
+ document.getElementById("totalCount").textContent=total;
+ document.getElementById("progressBar").style.width=Math.min(100,done/3*100)+"%";
+ document.getElementById("historySummary").innerHTML=`<strong>${total} treino(s) realizado(s)</strong><p class="hint">Programação cadastrada: ${sessions.length} sessões, de 23/11/2026 a 15/01/2027.</p>`;
+}
+function render(){renderAgenda();renderWorkouts();renderStats()}
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
+ document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("active",x===b));
+ ["agenda","fichas","historico"].forEach(id=>document.getElementById(id).classList.toggle("hidden",id!==b.dataset.tab));
+});
+document.getElementById("exportBtn").onclick=()=>{
+ const blob=new Blob([JSON.stringify(records,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download="backup-treinos-carolina.json";a.click();URL.revokeObjectURL(url);
+};
+document.getElementById("importFile").onchange=async e=>{
+ const file=e.target.files[0];if(!file)return;
+ try{const data=JSON.parse(await file.text());records=data;save();render();alert("Backup restaurado.");}
+ catch{alert("Não foi possível ler esse backup.");}
+};
+if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("./sw.js").catch(()=>{});
+render();
+</script>
+</body></html>
